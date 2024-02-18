@@ -3,6 +3,7 @@ package tokenbucket
 import (
 	"errors"
 	"sync"
+	"time"
 )
 
 var (
@@ -14,6 +15,7 @@ type TokenBucket struct {
 	rate     int
 	tokens   map[string]int
 	rw       sync.RWMutex
+	stop     chan struct{}
 }
 
 func New(capacity, rate int) *TokenBucket {
@@ -21,6 +23,7 @@ func New(capacity, rate int) *TokenBucket {
 		capacity: capacity,
 		rate:     rate,
 		tokens:   make(map[string]int),
+		stop:     make(chan struct{}),
 	}
 }
 
@@ -60,4 +63,28 @@ func (tb *TokenBucket) Remaining(key string) int {
 	defer tb.rw.RUnlock()
 
 	return tb.tokens[key]
+}
+
+func (tb *TokenBucket) Refill() {
+	ticker := time.NewTicker(time.Duration(tb.rate) * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			tb.rw.Lock()
+			for key, val := range tb.tokens {
+				if val < tb.capacity {
+					tb.tokens[key] = val + 1
+				}
+			}
+			tb.rw.Unlock()
+		case <-tb.stop:
+			return
+		}
+	}
+}
+
+func (tb *TokenBucket) Stop() {
+	close(tb.stop)
 }
