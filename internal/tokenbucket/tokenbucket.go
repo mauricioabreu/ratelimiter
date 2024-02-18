@@ -18,6 +18,9 @@ type TokenBucket struct {
 	stop     chan struct{}
 }
 
+// New create a Token Bucket rate limiter
+// TokenBucket rate limiter is based on giving a number of (`capacity`)
+// tokens to be used. Tokens are refilled at `rate` capacity in seconds.
 func New(capacity, rate int) *TokenBucket {
 	return &TokenBucket{
 		capacity: capacity,
@@ -27,6 +30,7 @@ func New(capacity, rate int) *TokenBucket {
 	}
 }
 
+// Add adds a token in the bucket for a given `key`
 func (tb *TokenBucket) Add(key string) {
 	tb.rw.Lock()
 	defer tb.rw.Unlock()
@@ -39,6 +43,9 @@ func (tb *TokenBucket) Add(key string) {
 	}
 }
 
+// Remove removes a token in the bucket for a given `key`
+// Here we decide to return an error in case the given `key`
+// has no tokens to consume
 func (tb *TokenBucket) Remove(key string) error {
 	tb.rw.Lock()
 	defer tb.rw.Unlock()
@@ -58,6 +65,8 @@ func (tb *TokenBucket) Remove(key string) error {
 	return nil
 }
 
+// Remaining returns the total remaining tokens
+// in the bucket for the given `key`
 func (tb *TokenBucket) Remaining(key string) int {
 	tb.rw.RLock()
 	defer tb.rw.RUnlock()
@@ -65,6 +74,7 @@ func (tb *TokenBucket) Remaining(key string) int {
 	return tb.tokens[key]
 }
 
+// Refill start a routine to refill the tokens for all the available keys
 func (tb *TokenBucket) Refill() {
 	ticker := time.NewTicker(time.Duration(tb.rate) * time.Second)
 	defer ticker.Stop()
@@ -85,6 +95,7 @@ func (tb *TokenBucket) Refill() {
 	}
 }
 
+// Stop stops refilling tokens
 func (tb *TokenBucket) Stop() {
 	close(tb.stop)
 }
