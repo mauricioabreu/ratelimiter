@@ -54,5 +54,7 @@ func TestRefill(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
+	tb.Stop()
+
 	assert.True(t, tb.Remaining(ip) > 9)
 }
