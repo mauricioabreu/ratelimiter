@@ -31,7 +31,7 @@ func keyExtractor(c echo.Context) string {
 }
 
 func main() {
-	tb := tokenbucket.New(bucketCapacity, 1)
+	tb := tokenbucket.New(bucketCapacity, 1, 60)
 	go tb.Refill()
 
 	e := echo.New()

@@ -6,10 +6,6 @@ import (
 	"time"
 )
 
-const (
-	expireInterval = 1 * time.Minute
-)
-
 var (
 	errOutOfTokens = errors.New("out of tokens")
 )
@@ -20,22 +16,24 @@ type Entry struct {
 }
 
 type TokenBucket struct {
-	capacity int
-	rate     int
-	bucket   map[string]*Entry
-	rw       sync.RWMutex
-	stop     chan struct{}
+	capacity       int
+	rate           int
+	expireInterval time.Duration
+	bucket         map[string]*Entry
+	rw             sync.RWMutex
+	stop           chan struct{}
 }
 
 // New create a Token Bucket rate limiter
 // TokenBucket rate limiter is based on giving a number of (`capacity`)
 // tokens to be used. Tokens are refilled at `rate` capacity in seconds.
-func New(capacity, rate int) *TokenBucket {
+func New(capacity, rate, expireInterval int) *TokenBucket {
 	return &TokenBucket{
-		capacity: capacity,
-		rate:     rate,
-		bucket:   make(map[string]*Entry),
-		stop:     make(chan struct{}),
+		capacity:       capacity,
+		rate:           rate,
+		bucket:         make(map[string]*Entry),
+		stop:           make(chan struct{}),
+		expireInterval: time.Duration(expireInterval) * time.Second,
 	}
 }
 
@@ -112,7 +110,7 @@ func (tb *TokenBucket) Refill() {
 
 // Expire remove all expired entries from the bucket
 func (tb *TokenBucket) Expire() {
-	ticker := time.NewTicker(expireInterval)
+	ticker := time.NewTicker(tb.expireInterval)
 	defer ticker.Stop()
 
 	for {
@@ -120,7 +118,7 @@ func (tb *TokenBucket) Expire() {
 		case <-ticker.C:
 			tb.rw.Lock()
 			for key, entry := range tb.bucket {
-				if time.Since(entry.lastUpdate) > expireInterval {
+				if time.Since(entry.lastUpdate) > tb.expireInterval {
 					delete(tb.bucket, key)
 				}
 			}
