@@ -7,6 +7,8 @@ import (
 	"github.com/mauricioabreu/ratelimiter/internal/tokenbucket"
 )
 
+const bucketCapacity = 10
+
 func TokenBucketMiddleware(tb *tokenbucket.TokenBucket, keyExtractor func(echo.Context) string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
@@ -29,7 +31,7 @@ func keyExtractor(c echo.Context) string {
 }
 
 func main() {
-	tb := tokenbucket.New(10, 1)
+	tb := tokenbucket.New(bucketCapacity, 1)
 	go tb.Refill()
 
 	e := echo.New()

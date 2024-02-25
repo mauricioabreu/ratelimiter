@@ -10,10 +10,15 @@ var (
 	errOutOfTokens = errors.New("out of tokens")
 )
 
+type Entry struct {
+	size       int
+	lastUpdate time.Time
+}
+
 type TokenBucket struct {
 	capacity int
 	rate     int
-	tokens   map[string]int
+	bucket   map[string]*Entry
 	rw       sync.RWMutex
 	stop     chan struct{}
 }
@@ -25,7 +30,7 @@ func New(capacity, rate int) *TokenBucket {
 	return &TokenBucket{
 		capacity: capacity,
 		rate:     rate,
-		tokens:   make(map[string]int),
+		bucket:   make(map[string]*Entry),
 		stop:     make(chan struct{}),
 	}
 }
@@ -35,11 +40,11 @@ func (tb *TokenBucket) Add(key string) {
 	tb.rw.Lock()
 	defer tb.rw.Unlock()
 
-	val, exists := tb.tokens[key]
+	entry, exists := tb.bucket[key]
 	if !exists {
-		tb.tokens[key] = tb.capacity
-	} else if val < tb.capacity {
-		tb.tokens[key] += 1
+		tb.bucket[key] = &Entry{size: tb.capacity, lastUpdate: time.Now()}
+	} else if entry.size < tb.capacity {
+		entry.size += 1
 	}
 }
 
@@ -50,17 +55,17 @@ func (tb *TokenBucket) Remove(key string) error {
 	tb.rw.Lock()
 	defer tb.rw.Unlock()
 
-	val, exists := tb.tokens[key]
+	entry, exists := tb.bucket[key]
 	if !exists {
-		tb.tokens[key] = tb.capacity - 1
+		tb.bucket[key] = &Entry{size: tb.capacity - 1, lastUpdate: time.Now()}
 		return nil
 	}
 
-	if val == 0 {
+	if entry.size == 0 {
 		return errOutOfTokens
 	}
 
-	tb.tokens[key] -= 1
+	entry.size -= 1
 
 	return nil
 }
@@ -71,7 +76,12 @@ func (tb *TokenBucket) Remaining(key string) int {
 	tb.rw.RLock()
 	defer tb.rw.RUnlock()
 
-	return tb.tokens[key]
+	entry, exists := tb.bucket[key]
+	if !exists {
+		return 0
+	}
+
+	return entry.size
 }
 
 // Refill start a routine to refill the tokens for all the available keys
@@ -83,9 +93,9 @@ func (tb *TokenBucket) Refill() {
 		select {
 		case <-ticker.C:
 			tb.rw.Lock()
-			for key, val := range tb.tokens {
-				if val < tb.capacity {
-					tb.tokens[key] = val + 1
+			for _, entry := range tb.bucket {
+				if entry.size < tb.capacity {
+					entry.size += 1
 				}
 			}
 			tb.rw.Unlock()
