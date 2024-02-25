@@ -6,6 +6,10 @@ import (
 	"time"
 )
 
+const (
+	expireInterval = 1 * time.Minute
+)
+
 var (
 	errOutOfTokens = errors.New("out of tokens")
 )
@@ -96,6 +100,27 @@ func (tb *TokenBucket) Refill() {
 			for _, entry := range tb.bucket {
 				if entry.size < tb.capacity {
 					entry.size += 1
+				}
+			}
+			tb.rw.Unlock()
+		case <-tb.stop:
+			return
+		}
+	}
+}
+
+// Expire remove all expired entries from the bucket
+func (tb *TokenBucket) Expire() {
+	ticker := time.NewTicker(expireInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			tb.rw.Lock()
+			for key, entry := range tb.bucket {
+				if time.Since(entry.lastUpdate) > expireInterval {
+					delete(tb.bucket, key)
 				}
 			}
 			tb.rw.Unlock()
