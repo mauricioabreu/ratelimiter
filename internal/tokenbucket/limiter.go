@@ -70,6 +70,7 @@ func (tb *TokenBucket) Remove(key string) error {
 	}
 
 	entry.size -= 1
+	entry.lastUpdate = time.Now()
 
 	return nil
 }
