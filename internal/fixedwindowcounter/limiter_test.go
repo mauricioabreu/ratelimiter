@@ -21,10 +21,9 @@ func TestCurrWindow(t *testing.T) {
 }
 
 func TestIncrement(t *testing.T) {
-	mockTime := func() time.Time {
+	fwc := fixedwindowcounter.New(100, 60).WithMockedTime(func() time.Time {
 		return time.Date(2024, 3, 2, 22, 33, 10, 0, time.UTC)
-	}
-	fwc := fixedwindowcounter.New(100, 60).WithMockedTime(mockTime)
+	})
 
 	assert.Equal(t, 0, fwc.Count("127.0.0.1"))
 
@@ -34,11 +33,18 @@ func TestIncrement(t *testing.T) {
 
 	assert.Equal(t, 3, fwc.Count("127.0.0.1"))
 
+	// Increment time to next seconds
+	// Check if the current window is the same
+	fwc.WithMockedTime(func() time.Time {
+		return time.Date(2024, 3, 2, 22, 33, 15, 0, time.UTC)
+	})
+
+	assert.Equal(t, 3, fwc.Count("127.0.0.1"))
+
 	// Increment time to the next minute
-	nextMockTime := func() time.Time {
+	fwc.WithMockedTime(func() time.Time {
 		return time.Date(2024, 3, 2, 22, 34, 10, 0, time.UTC)
-	}
-	fwc.WithMockedTime(nextMockTime)
+	})
 
 	assert.Equal(t, 0, fwc.Count("127.0.0.1"))
 
