@@ -38,7 +38,10 @@ func (f *FixedWindowCounter) CurrWindow() int64 {
 	return (now.Unix() / int64(f.size)) * int64(f.size)
 }
 
-func (f *FixedWindowCounter) Increment(key string) {
+// Increment increments counter for current window
+// When counter cannot be incremeted because it has exceeded
+// the size, return false
+func (f *FixedWindowCounter) Increment(key string) bool {
 	f.rw.Lock()
 	defer f.rw.Unlock()
 
@@ -50,16 +53,18 @@ func (f *FixedWindowCounter) Increment(key string) {
 
 	if _, exists := f.counter[key][currWindow]; !exists {
 		f.counter[key][currWindow] = &WindowEntry{count: 1, lastUpdate: f.getTime()}
-		return
+		return true
 	}
 
 	entry := f.counter[key][currWindow]
 	if entry.count >= f.threshold {
-		return
+		return false
 	}
 
 	entry.count++
 	entry.lastUpdate = f.getTime()
+
+	return true
 }
 
 func (f *FixedWindowCounter) Count(key string) int {
