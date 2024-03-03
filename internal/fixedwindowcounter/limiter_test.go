@@ -9,11 +9,9 @@ import (
 )
 
 func TestCurrWindow(t *testing.T) {
-	mockTime := func() time.Time {
-		// Sat Mar 02 2024 22:31:40 GMT+0000
+	fwc := fixedwindowcounter.New(60, 100).WithMockedTime(func() time.Time {
 		return time.Date(2024, 3, 2, 22, 33, 10, 0, time.UTC)
-	}
-	fwc := fixedwindowcounter.New(60, 100).WithMockedTime(mockTime)
+	})
 
 	currWindow := fwc.CurrWindow()
 
@@ -83,4 +81,35 @@ func TestIncrementThreshold(t *testing.T) {
 	assert.True(t, fwc.Increment("127.0.0.1"))
 	// Exceedes threshold
 	assert.False(t, fwc.Increment("127.0.0.1"))
+}
+
+func TestReset(t *testing.T) {
+	fwc := fixedwindowcounter.New(60, 100).WithMockedTime(func() time.Time {
+		return time.Date(2024, 3, 2, 22, 33, 10, 0, time.UTC)
+	})
+
+	fwc.Increment("127.0.0.1")
+	fwc.Increment("127.0.0.1")
+	fwc.Increment("127.0.0.1")
+
+	assert.Equal(t, 3, fwc.Count("127.0.0.1"))
+
+	fwc.ExpirePastWindows()
+
+	// Expiring the current window should not change anything
+	assert.Equal(t, 3, fwc.Count("127.0.0.1"))
+
+	fwc.WithMockedTime(func() time.Time {
+		return time.Date(2024, 3, 2, 22, 34, 10, 0, time.UTC)
+	})
+
+	fwc.Increment("127.0.0.1")
+
+	assert.Equal(t, 1, fwc.Count("127.0.0.1"))
+
+	fwc.ExpirePastWindows()
+
+	snapshot := fwc.EntriesByKey("127.0.0.1")
+
+	assert.Nil(t, snapshot[1709418780])
 }

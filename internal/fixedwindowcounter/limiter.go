@@ -67,6 +67,7 @@ func (f *FixedWindowCounter) Increment(key string) bool {
 	return true
 }
 
+// Count return the number of requests used
 func (f *FixedWindowCounter) Count(key string) int {
 	f.rw.RLock()
 	defer f.rw.RUnlock()
@@ -79,6 +80,27 @@ func (f *FixedWindowCounter) Count(key string) int {
 	return 0
 }
 
-func (f *FixedWindowCounter) Reset() {
+func (f *FixedWindowCounter) EntriesByKey(key string) map[int64]*WindowEntry {
+	f.rw.RLock()
+	defer f.rw.RUnlock()
 
+	return f.counter[key]
+}
+
+// ExpirePastWindows deletes all windows if they are not equal the current window
+// Delete the key if no windows/entries left
+func (f *FixedWindowCounter) ExpirePastWindows() {
+	currWindow := f.CurrWindow()
+
+	for key, windowSet := range f.counter {
+		for window := range windowSet {
+			if window != currWindow {
+				delete(windowSet, window)
+			}
+		}
+
+		if len(windowSet) == 0 {
+			delete(f.counter, key)
+		}
+	}
 }
