@@ -54,6 +54,22 @@ func TestIncrement(t *testing.T) {
 	assert.Equal(t, 2, fwc.Count("127.0.0.1"))
 }
 
+func TestIncrementMulitpleKeys(t *testing.T) {
+	fwc := fixedwindowcounter.New(60, 100).WithMockedTime(func() time.Time {
+		return time.Date(2024, 3, 2, 22, 33, 10, 0, time.UTC)
+	})
+
+	assert.Equal(t, 0, fwc.Count("127.0.0.1"))
+	assert.Equal(t, 0, fwc.Count("127.0.0.2"))
+
+	fwc.Increment("127.0.0.1")
+	fwc.Increment("127.0.0.2")
+	fwc.Increment("127.0.0.2")
+
+	assert.Equal(t, 1, fwc.Count("127.0.0.1"))
+	assert.Equal(t, 2, fwc.Count("127.0.0.2"))
+}
+
 func TestIncrementThreshold(t *testing.T) {
 	lowThreshold := 3
 	fwc := fixedwindowcounter.New(60, lowThreshold).WithMockedTime(func() time.Time {
