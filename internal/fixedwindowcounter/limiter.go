@@ -104,3 +104,13 @@ func (f *FixedWindowCounter) ExpirePastWindows() {
 		}
 	}
 }
+
+// StartExpiration start a timer to expire old keys/entries
+func (f *FixedWindowCounter) StartExpiration() {
+	ticker := time.NewTicker(time.Duration(f.size) * 2 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		f.ExpirePastWindows()
+	}
+}

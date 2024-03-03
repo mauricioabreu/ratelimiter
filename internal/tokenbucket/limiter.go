@@ -87,7 +87,7 @@ func (tb *TokenBucket) Remaining(key string) int {
 	return entry.size
 }
 
-// Refill start a routine to refill the tokens for all the available keys
+// Refill start a timer to refill the tokens for all the available keys
 func (tb *TokenBucket) Refill() {
 	ticker := time.NewTicker(time.Duration(tb.rate) * time.Second)
 	defer ticker.Stop()

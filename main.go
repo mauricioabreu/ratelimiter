@@ -48,6 +48,7 @@ func main() {
 	go tb.Refill()
 
 	fwc := fixedwindowcounter.New(60, 10)
+	go fwc.StartExpiration()
 
 	e := echo.New()
 	e.GET("/tb/limited", limitHandler, TokenBucketMiddleware(tb, keyExtractor))
